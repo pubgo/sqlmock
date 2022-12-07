@@ -31,6 +31,11 @@ jobs:
         uses: reviewdog/action-golangci-lint@v2
         with:
           level: info
+      - uses: gwatts/go-coverage-action@v1
+        id: coverage
+        with:
+          cover-pkg: ./...
+          report-url: https://artifacts.example.com/go-coverage/${{ github.ref_name}}.html
 
       - name: Collect dependencies
         run: go install gotest.tools/gotestsum@latest
