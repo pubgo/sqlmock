@@ -17,19 +17,20 @@ jobs:
         with:
           go-version: 1.16
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2
-        with:
-          skip-go-installation: true
-          args: --timeout 3m --verbose
       - name: Cache dependencies
-        id: cache
         uses: actions/cache@v2
         with:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: golangci-lint
+        uses: reviewdog/action-golangci-lint@v2
+        with:
+          level: info
 
       - name: Collect dependencies
         run: go install gotest.tools/gotestsum@latest
