@@ -58,33 +58,43 @@ func TestCreate(t *testing.T) {
 	mock := New(t)
 
 	var n = time.Now()
-	u := &User{
-		CreatedAt: &n,
-		UpdatedAt: &n,
-		Name:      "sheep",
-		Email:     "example@gmail.com",
+	u := []*User{
+		{
+			CreatedAt: &n,
+			UpdatedAt: &n,
+			Name:      "sheep",
+			Email:     "example@gmail.com",
+		},
+		{
+			CreatedAt: &n,
+			UpdatedAt: &n,
+			Name:      "sheep",
+			Email:     "example@gmail.com",
+		},
 	}
 
+	mock.ExpectBegin()
 	mock.Create(u).
-		WithTx().
 		Return(&User{
 			ID:   2,
 			Name: "sheep",
 		})
+	mock.ExpectCommit()
 
 	err := mock.DB().Create(u).Error
 	assert.NoError(t, err)
 	assert.NotNil(t, u)
-	assert.Equal(t, u.ID, uint(2))
-	assert.Equal(t, u.Name, "sheep")
+	assert.Equal(t, u[0].ID, uint(2))
+	assert.Equal(t, u[0].Name, "sheep")
 }
 
 func TestDelete(t *testing.T) {
 	mock := New(t)
 
+	mock.ExpectBegin()
 	mock.Delete(&User{Name: "sheep"}).
-		WithTx().
 		ReturnResult(1, 1)
+	mock.ExpectCommit()
 
 	ret := mock.DB().Where("name = ?", "sheep").Delete(&User{})
 	assert.NoError(t, ret.Error)
@@ -94,16 +104,17 @@ func TestDelete(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	mock := New(t)
 
+	mock.ExpectBegin()
 	mock.Update(&User{}).
-		WithTx().
 		WithArgs(sqlmock.Any(), "sheep", "sheep").
 		ReturnResult(1, 1)
 	opt := mock.DB().Where("name = ?", "sheep").Updates(&User{Name: "sheep"})
 	assert.NoError(t, opt.Error)
 	assert.Equal(t, opt.RowsAffected, int64(1))
+	mock.ExpectCommit()
 
+	mock.ExpectBegin()
 	mock.Update(&User{}).
-		WithTx().
 		WithArgsChecker(func(args []driver.Value) error {
 			assert.Equal(t, len(args), 3)
 			assert.Equal(t, args[1], "sheep")
@@ -111,6 +122,8 @@ func TestUpdate(t *testing.T) {
 			return nil
 		}).
 		ReturnResult(1, 1)
+	mock.ExpectCommit()
+
 	opt = mock.DB().Where("name = ?", "sheep").Updates(&User{Name: "sheep"})
 	assert.NoError(t, opt.Error)
 	assert.Equal(t, opt.RowsAffected, int64(1))

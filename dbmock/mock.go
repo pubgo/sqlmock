@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 
@@ -24,13 +25,12 @@ type DbMock struct {
 	delete     bool
 	update     bool
 	create     bool
-	tx         bool
 	prepare    bool
 	column     []*schema.Field
 	tableName  string
 	checker    func(args []driver.Value) error
 	optChecker sqlmock.Matcher
-	model      schema.Tabler
+	model      []schema.Tabler
 	sql        string
 	args       []driver.Value
 }
@@ -38,27 +38,39 @@ type DbMock struct {
 func (m *DbMock) Mock() sqlmock.Sqlmock { return m.mock }
 func (m *DbMock) DB() *gorm.DB          { return m.db }
 
-func (m *DbMock) createExpect(model schema.Tabler) *DbMock {
+func (m *DbMock) createExpect(model interface{}) *DbMock {
 	if model == nil {
 		m.tb.Fatalf("model is nil")
 		return m
+	}
+
+	var tbs []schema.Tabler
+	vv := reflect.ValueOf(model)
+	if vv.Kind() == reflect.Slice {
+		for i := 0; i < vv.Len(); i++ {
+			if _, ok := vv.Index(i).Interface().(schema.Tabler); !ok {
+				log.Fatalf("type error, data=%#v", vv.Index(i).Interface())
+			}
+			tbs = append(tbs, vv.Index(i).Interface().(schema.Tabler))
+		}
+	} else {
+		if _, ok := vv.Interface().(schema.Tabler); !ok {
+			log.Fatalf("type error, data=%#v", vv.Interface())
+		}
+		tbs = append(tbs, vv.Interface().(schema.Tabler))
 	}
 
 	return &DbMock{
 		mock:      m.mock,
 		db:        m.db,
 		tb:        m.tb,
-		model:     model,
-		tableName: model.TableName(),
-		column:    parseColumn(model),
+		model:     tbs,
+		tableName: tbs[0].TableName(),
+		column:    parseColumn(tbs[0]),
 	}
 }
 
 func (m *DbMock) do(err error, ret driver.Result, rows *sqlmock.Rows) {
-	if m.tx {
-		m.mock.ExpectBegin()
-	}
-
 	var sql = ""
 	if m.query {
 		sql = selectSql(m.tableName, sql)
@@ -92,28 +104,32 @@ func (m *DbMock) do(err error, ret driver.Result, rows *sqlmock.Rows) {
 
 	if m.create {
 		var args []driver.Value
-		var reflectValue = reflect.ValueOf(m.model)
-		for _, name := range m.column {
-			if name.PrimaryKey {
-				continue
-			}
+		for i := range m.model {
+			var reflectValue = reflect.ValueOf(m.model[i])
+			for _, name := range m.column {
+				if name.PrimaryKey {
+					continue
+				}
 
-			fv, _ := name.ValueOf(context.Background(), reflectValue)
-			args = append(args, fv)
+				fv, _ := name.ValueOf(context.Background(), reflectValue)
+				args = append(args, fv)
+			}
 		}
 		e = e.WithArgs(args...)
 	}
 
 	if m.query || m.delete {
 		var args []driver.Value
-		var reflectValue = reflect.ValueOf(m.model)
-		for _, name := range m.column {
-			fv, zero := name.ValueOf(context.Background(), reflectValue)
-			if zero {
-				continue
-			}
+		for i := range m.model {
+			var reflectValue = reflect.ValueOf(m.model[i])
+			for _, name := range m.column {
+				fv, zero := name.ValueOf(context.Background(), reflectValue)
+				if zero {
+					continue
+				}
 
-			args = append(args, fv)
+				args = append(args, fv)
+			}
 		}
 		e = e.WithArgs(args...)
 	}
@@ -133,18 +149,20 @@ func (m *DbMock) do(err error, ret driver.Result, rows *sqlmock.Rows) {
 	if ret != nil {
 		e.WillReturnResult(ret)
 	}
-
-	if m.tx {
-		if err == nil {
-			m.mock.ExpectCommit()
-		} else {
-			m.mock.ExpectRollback()
-		}
-	}
 }
 
-func (m *DbMock) WithTx() *DbMock {
-	m.tx = true
+func (m *DbMock) ExpectBegin() *DbMock {
+	m.mock.ExpectBegin()
+	return m
+}
+
+func (m *DbMock) ExpectCommit() *DbMock {
+	m.mock.ExpectCommit()
+	return m
+}
+
+func (m *DbMock) ExpectRollback() *DbMock {
+	m.mock.ExpectRollback()
 	return m
 }
 
@@ -186,7 +204,7 @@ func (m *DbMock) Sql(sql string) *DbMock {
 	return m
 }
 
-func (m *DbMock) Create(model schema.Tabler) *DbMock {
+func (m *DbMock) Create(model interface{}) *DbMock {
 	var mm = m.createExpect(model)
 	mm.create = true
 	return mm
