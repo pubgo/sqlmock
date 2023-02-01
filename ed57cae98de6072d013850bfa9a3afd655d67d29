@@ -1,0 +1,1 @@
+{"go-coverage-action-fmt":1,"coverage_pct":88.05774278215223,"pkg_stats":{"github.com/pubgo/sqlmock":[91.12227805695142],"github.com/pubgo/sqlmock/internal":[60],"github.com/pubgo/sqlmock/dbmock":[77.5]},"skipped_count":0}
