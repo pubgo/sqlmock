@@ -15,7 +15,7 @@ import (
 	"gorm.io/gorm/schema"
 )
 
-type dbMock struct {
+type DbMock struct {
 	tb   TestingTB
 	mock sqlmock.Sqlmock
 	db   *gorm.DB
@@ -35,16 +35,16 @@ type dbMock struct {
 	args       []driver.Value
 }
 
-func (m *dbMock) Mock() sqlmock.Sqlmock { return m.mock }
-func (m *dbMock) DB() *gorm.DB          { return m.db }
+func (m *DbMock) Mock() sqlmock.Sqlmock { return m.mock }
+func (m *DbMock) DB() *gorm.DB          { return m.db }
 
-func (m *dbMock) createExpect(model schema.Tabler) *dbMock {
+func (m *DbMock) createExpect(model schema.Tabler) *DbMock {
 	if model == nil {
 		m.tb.Fatalf("model is nil")
 		return m
 	}
 
-	return &dbMock{
+	return &DbMock{
 		mock:      m.mock,
 		db:        m.db,
 		tb:        m.tb,
@@ -54,7 +54,7 @@ func (m *dbMock) createExpect(model schema.Tabler) *dbMock {
 	}
 }
 
-func (m *dbMock) do(err error, ret driver.Result, rows *sqlmock.Rows) {
+func (m *DbMock) do(err error, ret driver.Result, rows *sqlmock.Rows) {
 	if m.tx {
 		m.mock.ExpectBegin()
 	}
@@ -80,8 +80,15 @@ func (m *dbMock) do(err error, ret driver.Result, rows *sqlmock.Rows) {
 		m.mock.ExpectPrepare(sql)
 	}
 
+	if m.sql != "" {
+		sql = m.sql
+	}
+
 	e := m.mock.ExpectSql(m.optChecker, sql)
-	e = e.WithArgsCheck(m.checker)
+
+	if m.checker != nil {
+		e = e.WithArgsCheck(m.checker)
+	}
 
 	if m.create {
 		var args []driver.Value
@@ -136,78 +143,81 @@ func (m *dbMock) do(err error, ret driver.Result, rows *sqlmock.Rows) {
 	}
 }
 
-func (m *dbMock) WithTx() *dbMock {
+func (m *DbMock) WithTx() *DbMock {
 	m.tx = true
 	return m
 }
 
-func (m *dbMock) WithArgs(args ...driver.Value) *dbMock {
+func (m *DbMock) WithArgs(args ...driver.Value) *DbMock {
 	m.args = args
 	return m
 }
 
-func (m *dbMock) WithPrepare() *dbMock {
+func (m *DbMock) WithPrepare() *DbMock {
 	m.prepare = true
 	return m
 }
 
-func (m *dbMock) WithArgsChecker(checker func(args []driver.Value) error) *dbMock {
+func (m *DbMock) WithArgsChecker(checker func(args []driver.Value) error) *DbMock {
 	m.checker = checker
 	return m
 }
 
-func (m *dbMock) WithOpt(checker sqlmock.Matcher) *dbMock {
+// WithOpt Opt=[exec,query]
+func (m *DbMock) WithOpt(checker sqlmock.Matcher) *DbMock {
 	m.optChecker = checker
 	return m
 }
 
-func (m *dbMock) ReturnErr(err error) {
+func (m *DbMock) ReturnErr(err error) {
 	m.do(err, nil, nil)
 }
 
-func (m *dbMock) ReturnResult(lastInsertID int64, rowsAffected int64) {
+func (m *DbMock) ReturnResult(lastInsertID int64, rowsAffected int64) {
 	m.do(nil, sqlmock.NewResult(lastInsertID, rowsAffected), nil)
 }
 
-func (m *dbMock) Return(returns interface{}) {
+func (m *DbMock) Return(returns interface{}) {
 	m.do(nil, nil, ModelToRows(returns))
 }
 
-func (m *dbMock) Sql(sql string) *dbMock {
+func (m *DbMock) Sql(sql string) *DbMock {
 	m.sql = sql
 	return m
 }
 
-func (m *dbMock) Create(model schema.Tabler) *dbMock {
+func (m *DbMock) Create(model schema.Tabler) *DbMock {
 	var mm = m.createExpect(model)
 	mm.create = true
 	return mm
 }
 
-func (m *dbMock) Delete(model schema.Tabler) *dbMock {
+func (m *DbMock) Delete(model schema.Tabler) *DbMock {
 	var mm = m.createExpect(model)
 	mm.delete = true
 	return mm
 }
 
-func (m *dbMock) Update(model schema.Tabler) *dbMock {
+func (m *DbMock) Update(model schema.Tabler) *DbMock {
 	var mm = m.createExpect(model)
 	mm.update = true
 	return mm
 }
 
-func (m *dbMock) Find(model schema.Tabler) *dbMock {
+func (m *DbMock) Find(model schema.Tabler) *DbMock {
 	var mm = m.createExpect(model)
 	mm.query = true
 	return mm
 }
 
-func NewMockDB(tb TestingTB) *dbMock {
+func New(tb TestingTB) *DbMock {
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherFunc(func(expectedSQL, actualSQL string) error {
 		expectedSQL = strings.TrimSpace(strings.ReplaceAll(expectedSQL, "**", "*"))
 		actualSQL = strings.TrimSpace(strings.ReplaceAll(actualSQL, "  ", " "))
 
-		if match.Match(strings.ToUpper(actualSQL), strings.ToUpper(expectedSQL)) {
+		expectedSQL = strings.ToUpper(expectedSQL)
+		actualSQL = strings.ToUpper(actualSQL)
+		if actualSQL == expectedSQL || match.Match(actualSQL, expectedSQL) {
 			return nil
 		}
 
@@ -244,5 +254,5 @@ func NewMockDB(tb TestingTB) *dbMock {
 		return nil
 	}
 
-	return &dbMock{db: gormDB, mock: mock, tb: tb}
+	return &DbMock{db: gormDB, mock: mock, tb: tb}
 }

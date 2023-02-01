@@ -35,7 +35,7 @@ func (u TestTab) TableName() string {
 }
 
 func Test_Select(t *testing.T) {
-	mock := NewMockDB(t)
+	mock := New(t)
 
 	mock.Find(&TestTab{ID: 1}).
 		Return(&TestTab{
@@ -55,7 +55,7 @@ func Test_Select(t *testing.T) {
 }
 
 func TestCreate(t *testing.T) {
-	mock := NewMockDB(t)
+	mock := New(t)
 
 	var n = time.Now()
 	u := &User{
@@ -80,7 +80,7 @@ func TestCreate(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	mock := NewMockDB(t)
+	mock := New(t)
 
 	mock.Delete(&User{Name: "sheep"}).
 		WithTx().
@@ -92,7 +92,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	mock := NewMockDB(t)
+	mock := New(t)
 
 	mock.Update(&User{}).
 		WithTx().
@@ -117,7 +117,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestFindById(t *testing.T) {
-	mock := NewMockDB(t)
+	mock := New(t)
 
 	var n = time.Now()
 	mock.Find(&User{ID: 1}).
@@ -148,7 +148,8 @@ func TestFindById(t *testing.T) {
 	assert.NotNil(t, user1)
 	assert.Equal(t, user1.Name, "hello1")
 
-	mock.Find(&User{ID: 3}).
+	mock.Sql(`SELECT "ID" FROM "USERS" WHERE ID = $1`).
+		WithArgs(3).
 		Return([]*User{
 			{
 				ID:   2,
