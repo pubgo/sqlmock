@@ -233,9 +233,9 @@ func New(tb TestingTB) *DbMock {
 		expectedSQL = strings.TrimSpace(strings.ReplaceAll(expectedSQL, "**", "*"))
 		actualSQL = strings.TrimSpace(strings.ReplaceAll(actualSQL, "  ", " "))
 
-		expectedSQL = strings.ToUpper(expectedSQL)
-		actualSQL = strings.ToUpper(actualSQL)
-		if actualSQL == expectedSQL || match.Match(actualSQL, expectedSQL) {
+		expectedSQLUpper := strings.ToUpper(expectedSQL)
+		actualSQLUpper := strings.ToUpper(actualSQL)
+		if actualSQLUpper == expectedSQLUpper || match.Match(actualSQLUpper, expectedSQLUpper) {
 			return nil
 		}
 
