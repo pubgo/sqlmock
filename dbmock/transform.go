@@ -11,66 +11,49 @@ import (
 	"gorm.io/gorm/schema"
 )
 
-func parseColumn(table interface{}) []*schema.Field {
-	column := make([]*schema.Field, 0)
-	s, err := schema.Parse(table, &sync.Map{}, schema.NamingStrategy{})
-	if err != nil {
-		return column
-	}
-	for _, v := range s.Fields {
-		if len(v.DBName) != 0 {
-			column = append(column, v)
-		}
-	}
-	return column
+func NewRows(columns ...string) *sqlmock.Rows {
+	return sqlmock.NewRows(columns)
 }
 
-func parseValue(table interface{}) []driver.Value {
-	var row []driver.Value
-	s, err := schema.Parse(table, &sync.Map{}, schema.NamingStrategy{})
-	if err != nil {
-		return row
-	}
-
-	var reflectValue = reflect.ValueOf(table)
-	for _, col := range parseColumn(table) {
-		fv, _ := s.FieldsByDBName[col.DBName].ValueOf(context.Background(), reflectValue)
-		row = append(row, fv)
-	}
-	return row
-}
-
-func ModelToRows(dst interface{}) *sqlmock.Rows {
-	if dst == nil {
-		return sqlmock.NewRows(nil)
-	}
-
-	var columns []string
-	var vv = reflect.ValueOf(dst)
-	if vv.Kind() == reflect.Ptr {
-		vv = vv.Elem()
-	}
-
-	var values []interface{}
-	if vv.Kind() == reflect.Array || vv.Kind() == reflect.Slice {
-		for _, f := range parseColumn(vv.Index(0).Interface()) {
-			columns = append(columns, f.DBName)
-		}
-		for i := 0; i < vv.Len(); i++ {
-			values = append(values, vv.Index(i).Interface())
-		}
-	} else {
-		for _, f := range parseColumn(dst) {
-			columns = append(columns, f.DBName)
-		}
-		values = append(values, dst)
-	}
-
+func ModelToRows[T any](objs ...*T) *sqlmock.Rows {
+	var t T
+	columns, _ := getColumns(&t)
 	rows := sqlmock.NewRows(columns)
-	for i := range values {
-		rows.AddRow(parseValue(values[i])...)
+	for _, w := range objs {
+		values, _ := getValues(w, columns)
+		rows.AddRow(values...)
 	}
 	return rows
+}
+
+func getValues(dest any, columns []string) ([]driver.Value, error) {
+	s, err := schema.Parse(dest, &sync.Map{}, schema.NamingStrategy{})
+	if err != nil {
+		return nil, err
+	}
+
+	rv := reflect.ValueOf(dest)
+	values := make([]driver.Value, 0, len(columns))
+	for _, col := range columns {
+		fv, _ := s.FieldsByDBName[col].ValueOf(context.Background(), rv)
+		values = append(values, fv)
+	}
+	return values, nil
+}
+
+func getColumns(dest any) ([]string, error) {
+	s, err := schema.Parse(dest, &sync.Map{}, schema.NamingStrategy{})
+	if err != nil {
+		return nil, err
+	}
+
+	columns := make([]string, 0, len(s.Fields))
+	for _, v := range s.Fields {
+		if len(v.DBName) != 0 {
+			columns = append(columns, v.DBName)
+		}
+	}
+	return columns, nil
 }
 
 func insertSql(tableName string) string {

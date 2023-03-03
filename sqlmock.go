@@ -74,7 +74,7 @@ type Common interface {
 	// to be used as sql driver.Rows.
 	NewRows(columns []string) *Rows
 
-	ExpectSql(expectedOpt Matcher, expectedSQL string) *ExpectedSql
+	ExpectSql(optChecker Matcher, expectedSQL string) *ExpectedSql
 }
 
 type sqlmock struct {

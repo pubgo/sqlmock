@@ -133,8 +133,8 @@ type ExpectedSql struct {
 	expectedOpt      Matcher
 }
 
-// WithArgsCheck match sql args
-func (e *ExpectedSql) WithArgsCheck(checkArgs func(args []driver.Value) error) *ExpectedSql {
+// WithArgsChecker match sql args
+func (e *ExpectedSql) WithArgsChecker(checkArgs func(args []driver.Value) error) *ExpectedSql {
 	e.checkArgs = checkArgs
 	return e
 }

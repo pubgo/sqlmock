@@ -12,6 +12,10 @@ import (
 )
 
 func (e *queryBasedExpectation) argsMatches(args []driver.NamedValue) error {
+	if len(e.args) == 0 {
+		return nil
+	}
+
 	if len(args) != len(e.args) {
 		log.Printf("arguments not match\n expected => %s\n actual   => %s \n", jsonify(e.args), jsonify(convValue(args)))
 		return fmt.Errorf("expected %d, but got %d arguments", len(e.args), len(args))
