@@ -1,18 +1,9 @@
 package sqlmock
 
 import (
-	"database/sql/driver"
 	"testing"
 	"time"
 )
-
-type AnyTime struct{}
-
-// Match satisfies sqlmock.Matcher interface
-func (a AnyTime) Match(v driver.Value) bool {
-	_, ok := v.(time.Time)
-	return ok
-}
 
 func TestAnyTimeMatcher(t *testing.T) {
 	t.Parallel()
@@ -23,7 +14,7 @@ func TestAnyTimeMatcher(t *testing.T) {
 	defer db.Close()
 
 	mock.ExpectSql(nil, "INSERT INTO users").
-		WithArgs("john", AnyTime{}).
+		WithArgs("john", AnyTime()).
 		WillReturnResult(NewResult(1, 1))
 
 	_, err = db.Exec("INSERT INTO users(name, created_at) VALUES (?, ?)", "john", time.Now())

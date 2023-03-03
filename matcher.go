@@ -1,6 +1,9 @@
 package sqlmock
 
-import "database/sql/driver"
+import (
+	"database/sql/driver"
+	"time"
+)
 
 // Matcher interface allows to match
 // any argument in specific way when used with Expected expectations.
@@ -20,10 +23,21 @@ func Any() Matcher {
 	return MatchFunc(func(value driver.Value) bool { return true })
 }
 
-func Exec() Matcher {
+func AnyTime() Matcher {
+	return MatchFunc(func(v driver.Value) bool {
+		_, ok := v.(time.Time)
+		return ok
+	})
+}
+
+func ExecOpt() Matcher {
 	return MatchFunc(func(value driver.Value) bool { return value == "exec" })
 }
 
-func Query() Matcher {
+func QueryOpt() Matcher {
 	return MatchFunc(func(value driver.Value) bool { return value == "query" })
+}
+
+func AnyArgsChecker(_ []driver.Value) error {
+	return nil
 }

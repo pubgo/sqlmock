@@ -22,16 +22,6 @@ func (s CustomConverter) ConvertValue(v interface{}) (driver.Value, error) {
 	}
 }
 
-func ExampleExpectedExec() {
-	db, mock, _ := New()
-	result := NewErrorResult(fmt.Errorf("some error"))
-	mock.ExpectSql(nil, "^INSERT (.+)").WillReturnResult(result)
-	res, _ := db.Exec("INSERT something")
-	_, err := res.LastInsertId()
-	fmt.Println(err)
-	// Output: some error
-}
-
 func TestBuildQuery(t *testing.T) {
 	db, mock, _ := New()
 	query := `

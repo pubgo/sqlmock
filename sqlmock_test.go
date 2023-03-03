@@ -728,8 +728,8 @@ func TestRunQueriesWithOrderedShouldNotMeetAllExpectations(t *testing.T) {
 	db, dbmock, err := New()
 	assert.Nil(t, err)
 
-	dbmock.ExpectSql(Query(), "THE FIRST QUERY")
-	dbmock.ExpectSql(Query(), "THE SECOND QUERY")
+	dbmock.ExpectSql(QueryOpt(), "THE FIRST QUERY")
+	dbmock.ExpectSql(QueryOpt(), "THE SECOND QUERY")
 
 	_, _ = db.Query("THE FIRST QUERY")
 	_, _ = db.Query("THE WRONG QUERY")
